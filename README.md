@@ -74,7 +74,12 @@ This installs Flask (the web framework).
 ### Step 4 — Run the Application
 
 ```bash
+# Run on default port (5001)
 python app.py
+
+# Or specify any port you prefer:
+python app.py 8080
+python app.py --port 3000
 ```
 
 The first time it runs, it automatically creates `expenses.db` and the `expenses` table.
