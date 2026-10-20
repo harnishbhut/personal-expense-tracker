@@ -1,6 +1,6 @@
 # 💰 Personal Expense Tracker
 
-A beginner-friendly full-stack web application for tracking your daily expenses.  
+A full-stack web application for tracking your daily expenses.  
 Built with **Python + Flask** (backend), **SQLite** (database), and **HTML/CSS/JavaScript** (frontend).
 
 ---
