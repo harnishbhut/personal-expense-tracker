@@ -338,7 +338,28 @@ def get_summary():
 # ══════════════════════════════════════════════════════════════
 
 if __name__ == "__main__":
+    import sys
+    import os
+
+    # Allow custom port via CLI argument (e.g. python app.py 5001 or --port 5001)
+    # or via environment variable PORT, defaulting to 5001
+    port = 5001
+    if len(sys.argv) > 1:
+        for idx, arg in enumerate(sys.argv[1:]):
+            if arg in ("--port", "-p") and idx + 1 < len(sys.argv[1:]):
+                try:
+                    port = int(sys.argv[idx + 2])
+                except ValueError:
+                    pass
+            elif arg.isdigit():
+                port = int(arg)
+    elif os.environ.get("PORT"):
+        try:
+            port = int(os.environ.get("PORT"))
+        except ValueError:
+            pass
+
     init_db()   # Make sure the database and table exist
     print("[START] Starting Personal Expense Tracker...")
-    print("[URL]   Open your browser and go to: http://127.0.0.1:5000")
-    app.run(debug=True)  # debug=True auto-reloads when you save changes
+    print(f"[URL]   Open your browser and go to: http://127.0.0.1:{port}")
+    app.run(debug=True, port=port)
