@@ -1,0 +1,442 @@
+<!DOCTYPE html>
+<!--
+  expenses.html — Manage All Expenses Page
+  ─────────────────────────────────────────
+  This page lets users:
+    • View all expenses in a table
+    • Search by title
+    • Filter by category and date range
+    • Edit any expense (opens a modal popup)
+    • Delete any expense (asks for confirmation first)
+-->
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>All Expenses — Personal Expense Tracker</title>
+  <meta name="description" content="View, search, filter, edit, and delete all your recorded expenses." />
+  <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+
+<button class="menu-toggle" id="menuToggle" aria-label="Open menu">☰</button>
+
+<div class="app-layout">
+
+  <!-- ════════════════════════════════════════
+       SIDEBAR
+       ════════════════════════════════════════ -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-logo">
+      <div class="logo-icon">💰</div>
+      <div class="logo-text">
+        ExpenseTracker
+        <span>Personal Finance</span>
+      </div>
+    </div>
+    <nav class="sidebar-nav">
+      <p class="nav-label">Menu</p>
+      <a class="nav-item" href="/"         data-href="/">        <span class="nav-icon">📊</span> Dashboard   </a>
+      <a class="nav-item" href="/add"      data-href="/add">     <span class="nav-icon">➕</span> Add Expense </a>
+      <a class="nav-item" href="/expenses" data-href="/expenses"><span class="nav-icon">📋</span> All Expenses</a>
+    </nav>
+  </aside>
+
+  <!-- ════════════════════════════════════════
+       MAIN CONTENT
+       ════════════════════════════════════════ -->
+  <main class="main-content">
+
+    <div class="page-header" style="display:flex; align-items:flex-start; justify-content:space-between; flex-wrap:wrap; gap:16px;">
+      <div>
+        <h1>All Expenses</h1>
+        <p>Search, filter, edit, or delete your expenses.</p>
+      </div>
+      <a href="/add" class="btn btn-primary">➕ Add Expense</a>
+    </div>
+
+    <!-- Alert banner -->
+    <div id="page-alert" class="alert" role="alert"></div>
+
+    <!-- ── Search and Filter Bar ───────────────────────────── -->
+    <div class="card" style="margin-bottom:20px; padding:20px;">
+      <div class="filters-bar">
+        <div class="form-group">
+          <label for="search">Search</label>
+          <input
+            type="text"
+            id="search"
+            placeholder="Search by title…"
+            oninput="applyFilters()"
+          />
+        </div>
+        <div class="form-group">
+          <label for="filter-category">Category</label>
+          <select id="filter-category" onchange="applyFilters()">
+            <option value="">All categories</option>
+            <option value="Food">🍔 Food</option>
+            <option value="Transport">🚗 Transport</option>
+            <option value="Shopping">🛍️ Shopping</option>
+            <option value="Bills">⚡ Bills</option>
+            <option value="Education">📚 Education</option>
+            <option value="Other">📦 Other</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="filter-start">From Date</label>
+          <input type="date" id="filter-start" onchange="applyFilters()" />
+        </div>
+        <div class="form-group">
+          <label for="filter-end">To Date</label>
+          <input type="date" id="filter-end" onchange="applyFilters()" />
+        </div>
+        <div>
+          <button class="btn btn-outline" onclick="clearFilters()">✕ Clear</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Expenses Table ──────────────────────────────────── -->
+    <div class="card" style="padding:0;">
+      <div id="table-container">
+        <div class="loading-container">
+          <div class="spinner"></div>
+          <span>Loading expenses…</span>
+        </div>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<!-- ═══════════════════════════════════════════════
+     EDIT MODAL
+     A popup dialog that appears when the user
+     clicks the "Edit" button on any row.
+     ═══════════════════════════════════════════════ -->
+<div class="modal-overlay" id="edit-modal" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+  <div class="modal">
+    <div class="modal-header">
+      <h2 id="modal-title">Edit Expense</h2>
+      <button class="modal-close" onclick="closeModal()" aria-label="Close">✕</button>
+    </div>
+
+    <!-- Alert inside the modal -->
+    <div id="modal-alert" class="alert" role="alert"></div>
+
+    <form id="edit-form" novalidate>
+      <!-- Hidden field stores the ID of the expense being edited -->
+      <input type="hidden" id="edit-id" />
+
+      <div class="form-group">
+        <label for="edit-title">Title <span style="color:var(--red)">*</span></label>
+        <input type="text" id="edit-title" required maxlength="120" />
+        <div class="form-error" id="edit-err-title"></div>
+      </div>
+
+      <div class="form-grid">
+        <div class="form-group">
+          <label for="edit-amount">Amount ($) <span style="color:var(--red)">*</span></label>
+          <input type="number" id="edit-amount" min="0.01" step="0.01" required />
+          <div class="form-error" id="edit-err-amount"></div>
+        </div>
+        <div class="form-group">
+          <label for="edit-category">Category <span style="color:var(--red)">*</span></label>
+          <select id="edit-category" required>
+            <option value="Food">🍔 Food</option>
+            <option value="Transport">🚗 Transport</option>
+            <option value="Shopping">🛍️ Shopping</option>
+            <option value="Bills">⚡ Bills</option>
+            <option value="Education">📚 Education</option>
+            <option value="Other">📦 Other</option>
+          </select>
+          <div class="form-error" id="edit-err-category"></div>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label for="edit-date">Date <span style="color:var(--red)">*</span></label>
+        <input type="date" id="edit-date" required />
+        <div class="form-error" id="edit-err-date"></div>
+      </div>
+
+      <div class="form-group">
+        <label for="edit-description">Description <span style="color:var(--text-muted); font-weight:400">(optional)</span></label>
+        <textarea id="edit-description" maxlength="500"></textarea>
+      </div>
+
+      <div style="display:flex; gap:12px;">
+        <button type="submit" class="btn btn-primary" id="edit-submit-btn">💾 Save Changes</button>
+        <button type="button" class="btn btn-outline" onclick="closeModal()">Cancel</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script src="/static/script.js"></script>
+<script>
+/**
+ * All Expenses page script.
+ */
+
+// ─────────────────────────────────────────────────────────────
+//  LOAD & RENDER TABLE
+// ─────────────────────────────────────────────────────────────
+
+/** Fetch expenses with current filter values and render the table. */
+async function loadExpenses() {
+  showLoading('table-container');
+
+  const filters = {
+    search:     document.getElementById('search').value,
+    category:   document.getElementById('filter-category').value,
+    start_date: document.getElementById('filter-start').value,
+    end_date:   document.getElementById('filter-end').value,
+  };
+
+  try {
+    const expenses = await fetchExpenses(filters);
+    renderTable(expenses);
+  } catch (err) {
+    document.getElementById('table-container').innerHTML =
+      '<p class="text-muted" style="padding:24px">Failed to load expenses.</p>';
+  }
+}
+
+/** Build and insert the HTML table from an array of expense objects. */
+function renderTable(expenses) {
+  const container = document.getElementById('table-container');
+
+  if (expenses.length === 0) {
+    container.innerHTML = `
+      <div class="empty-state">
+        <div class="empty-icon">🗂️</div>
+        <h3>No expenses found</h3>
+        <p>Try adjusting your filters, or add a new expense.</p>
+        <a href="/add" class="btn btn-primary">➕ Add Expense</a>
+      </div>`;
+    return;
+  }
+
+  // Calculate the total of the visible expenses
+  const visibleTotal = expenses.reduce((sum, e) => sum + e.amount, 0);
+
+  container.innerHTML = `
+    <div class="table-wrapper">
+      <table>
+        <thead>
+          <tr>
+            <th>Title</th>
+            <th>Category</th>
+            <th>Date</th>
+            <th>Amount</th>
+            <th>Description</th>
+            <th style="text-align:center">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${expenses.map(exp => `
+            <tr id="row-${exp.id}">
+              <td><span style="font-weight:600">${escapeHtml(exp.title)}</span></td>
+              <td>${makeBadge(exp.category)}</td>
+              <td style="color:var(--text-secondary)">${formatDate(exp.date)}</td>
+              <td class="fw-700" style="color:var(--accent-start)">${formatCurrency(exp.amount)}</td>
+              <td style="color:var(--text-secondary); max-width:200px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">
+                ${exp.description ? escapeHtml(exp.description) : '<span style="color:var(--text-muted)">—</span>'}
+              </td>
+              <td>
+                <div style="display:flex; gap:6px; justify-content:center;">
+                  <button
+                    class="btn btn-outline btn-sm btn-icon"
+                    onclick="openEditModal(${exp.id})"
+                    title="Edit"
+                    aria-label="Edit ${escapeHtml(exp.title)}"
+                  >✏️</button>
+                  <button
+                    class="btn btn-danger btn-sm btn-icon"
+                    onclick="confirmDelete(${exp.id}, '${escapeHtml(exp.title)}')"
+                    title="Delete"
+                    aria-label="Delete ${escapeHtml(exp.title)}"
+                  >🗑️</button>
+                </div>
+              </td>
+            </tr>`).join('')}
+        </tbody>
+        <tfoot>
+          <tr style="background:var(--bg-sidebar)">
+            <td colspan="3" style="padding:14px 16px; color:var(--text-secondary); font-size:13px;">
+              ${expenses.length} expense${expenses.length !== 1 ? 's' : ''}
+            </td>
+            <td style="padding:14px 16px; font-weight:700; color:var(--text-primary);">
+              ${formatCurrency(visibleTotal)}
+            </td>
+            <td colspan="2"></td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>`;
+}
+
+// ─────────────────────────────────────────────────────────────
+//  FILTERS
+// ─────────────────────────────────────────────────────────────
+
+/** Called whenever a filter changes — debounce to avoid rapid API calls. */
+let filterTimer;
+function applyFilters() {
+  clearTimeout(filterTimer);
+  filterTimer = setTimeout(loadExpenses, 300); // Wait 300ms before calling
+}
+
+function clearFilters() {
+  document.getElementById('search').value         = '';
+  document.getElementById('filter-category').value = '';
+  document.getElementById('filter-start').value   = '';
+  document.getElementById('filter-end').value     = '';
+  loadExpenses();
+}
+
+// ─────────────────────────────────────────────────────────────
+//  EDIT MODAL
+// ─────────────────────────────────────────────────────────────
+
+/** Open the edit modal and populate it with the expense's current data. */
+async function openEditModal(id) {
+  clearModalErrors();
+  document.getElementById('modal-alert').className = 'alert';
+
+  try {
+    const expense = await fetchExpense(id);
+
+    // Fill in the modal form fields
+    document.getElementById('edit-id').value          = expense.id;
+    document.getElementById('edit-title').value       = expense.title;
+    document.getElementById('edit-amount').value      = expense.amount;
+    document.getElementById('edit-category').value    = expense.category;
+    document.getElementById('edit-date').value        = expense.date;
+    document.getElementById('edit-description').value = expense.description || '';
+
+    // Show the modal
+    document.getElementById('edit-modal').classList.add('open');
+    document.getElementById('edit-title').focus();
+  } catch (err) {
+    showAlert('page-alert', 'Could not load expense data.', 'error');
+  }
+}
+
+function closeModal() {
+  document.getElementById('edit-modal').classList.remove('open');
+}
+
+// Close modal when clicking the dark overlay behind it
+document.getElementById('edit-modal').addEventListener('click', function(e) {
+  if (e.target === this) closeModal();
+});
+
+// Close modal with Escape key
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') closeModal();
+});
+
+function clearModalErrors() {
+  document.querySelectorAll('[id^="edit-err-"]').forEach(el => {
+    el.textContent = '';
+    el.classList.remove('visible');
+  });
+}
+
+function setModalError(field, msg) {
+  const el = document.getElementById('edit-err-' + field);
+  if (!el) return;
+  el.textContent = msg;
+  el.classList.add('visible');
+}
+
+/** Handle the edit form submission */
+document.getElementById('edit-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  clearModalErrors();
+
+  const id   = document.getElementById('edit-id').value;
+  const data = {
+    title:       document.getElementById('edit-title').value,
+    amount:      parseFloat(document.getElementById('edit-amount').value),
+    category:    document.getElementById('edit-category').value,
+    date:        document.getElementById('edit-date').value,
+    description: document.getElementById('edit-description').value,
+  };
+
+  const btn = document.getElementById('edit-submit-btn');
+  btn.disabled = true;
+  btn.textContent = '⏳ Saving…';
+
+  try {
+    const result = await updateExpense(id, data);
+
+    if (result.ok) {
+      closeModal();
+      showAlert('page-alert', `"${data.title}" updated successfully.`, 'success');
+      loadExpenses(); // Reload the table
+    } else {
+      if (result.data.errors) {
+        Object.entries(result.data.errors).forEach(([f, m]) => setModalError(f, m));
+        showAlert('modal-alert', 'Please fix the errors above.', 'error');
+      } else {
+        showAlert('modal-alert', result.data.error || 'Update failed.', 'error');
+      }
+    }
+  } catch (err) {
+    showAlert('modal-alert', 'Network error. Please try again.', 'error');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '💾 Save Changes';
+  }
+});
+
+// ─────────────────────────────────────────────────────────────
+//  DELETE
+// ─────────────────────────────────────────────────────────────
+
+/** Ask for confirmation then delete the expense. */
+async function confirmDelete(id, title) {
+  // window.confirm() shows a native browser confirmation dialog
+  const confirmed = window.confirm(
+    `Are you sure you want to delete "${title}"?\n\nThis action cannot be undone.`
+  );
+  if (!confirmed) return;
+
+  try {
+    const result = await deleteExpense(id);
+    if (result.ok) {
+      showAlert('page-alert', `"${title}" deleted successfully.`, 'success');
+      loadExpenses(); // Reload the table
+    } else {
+      showAlert('page-alert', result.data.error || 'Delete failed.', 'error');
+    }
+  } catch (err) {
+    showAlert('page-alert', 'Network error. Please try again.', 'error');
+  }
+}
+
+// ─────────────────────────────────────────────────────────────
+//  SECURITY HELPER — prevent XSS
+// ─────────────────────────────────────────────────────────────
+
+/**
+ * Escape special HTML characters in user-supplied text.
+ * This prevents Cross-Site Scripting (XSS) attacks where
+ * malicious scripts could be injected via expense titles.
+ */
+function escapeHtml(text) {
+  const el = document.createElement('div');
+  el.textContent = text;
+  return el.innerHTML;
+}
+
+// ─────────────────────────────────────────────────────────────
+//  INITIALISE
+// ─────────────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', loadExpenses);
+</script>
+</body>
+</html>

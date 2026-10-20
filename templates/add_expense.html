@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<!--
+  add_expense.html — Add Expense Page
+  ─────────────────────────────────────
+  This page contains the form for adding a new expense.
+
+  When the user fills in the form and clicks "Save Expense":
+    1. JavaScript collects the form values.
+    2. It validates them on the client side (quick check).
+    3. It sends a POST request with JSON data to /api/expenses.
+    4. Flask validates again on the server and saves to SQLite.
+    5. JavaScript shows a success or error message.
+-->
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Add Expense — Personal Expense Tracker</title>
+  <meta name="description" content="Add a new expense to your personal expense tracker." />
+  <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+
+<button class="menu-toggle" id="menuToggle" aria-label="Open menu">☰</button>
+
+<div class="app-layout">
+
+  <!-- ════════════════════════════════════════
+       SIDEBAR
+       ════════════════════════════════════════ -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-logo">
+      <div class="logo-icon">💰</div>
+      <div class="logo-text">
+        ExpenseTracker
+        <span>Personal Finance</span>
+      </div>
+    </div>
+    <nav class="sidebar-nav">
+      <p class="nav-label">Menu</p>
+      <a class="nav-item" href="/"        data-href="/">        <span class="nav-icon">📊</span> Dashboard   </a>
+      <a class="nav-item" href="/add"     data-href="/add">     <span class="nav-icon">➕</span> Add Expense </a>
+      <a class="nav-item" href="/expenses" data-href="/expenses"><span class="nav-icon">📋</span> All Expenses</a>
+    </nav>
+  </aside>
+
+  <!-- ════════════════════════════════════════
+       MAIN CONTENT
+       ════════════════════════════════════════ -->
+  <main class="main-content">
+
+    <div class="page-header">
+      <h1>Add Expense</h1>
+      <p>Record a new expense to keep track of your spending.</p>
+    </div>
+
+    <!-- Success / error alert banner -->
+    <div id="form-alert" class="alert" role="alert"></div>
+
+    <div class="card" style="max-width: 640px;">
+      <form id="expense-form" novalidate>
+
+        <!-- Title -->
+        <div class="form-group">
+          <label for="title">Expense Title <span style="color:var(--red)">*</span></label>
+          <input
+            type="text"
+            id="title"
+            name="title"
+            placeholder="e.g. Grocery shopping, Netflix, Bus ticket…"
+            maxlength="120"
+            required
+          />
+          <div class="form-error" id="err-title"></div>
+        </div>
+
+        <!-- Amount + Category (side by side on desktop) -->
+        <div class="form-grid">
+          <div class="form-group">
+            <label for="amount">Amount ($) <span style="color:var(--red)">*</span></label>
+            <input
+              type="number"
+              id="amount"
+              name="amount"
+              placeholder="0.00"
+              min="0.01"
+              step="0.01"
+              required
+            />
+            <div class="form-error" id="err-amount"></div>
+          </div>
+
+          <div class="form-group">
+            <label for="category">Category <span style="color:var(--red)">*</span></label>
+            <select id="category" name="category" required>
+              <option value="">Select a category…</option>
+              <option value="Food">🍔 Food</option>
+              <option value="Transport">🚗 Transport</option>
+              <option value="Shopping">🛍️ Shopping</option>
+              <option value="Bills">⚡ Bills</option>
+              <option value="Education">📚 Education</option>
+              <option value="Other">📦 Other</option>
+            </select>
+            <div class="form-error" id="err-category"></div>
+          </div>
+        </div>
+
+        <!-- Date -->
+        <div class="form-group">
+          <label for="date">Date <span style="color:var(--red)">*</span></label>
+          <input type="date" id="date" name="date" required />
+          <div class="form-error" id="err-date"></div>
+        </div>
+
+        <!-- Description (optional) -->
+        <div class="form-group">
+          <label for="description">Description <span style="color:var(--text-muted); font-weight:400">(optional)</span></label>
+          <textarea
+            id="description"
+            name="description"
+            placeholder="Add any extra notes about this expense…"
+            maxlength="500"
+          ></textarea>
+        </div>
+
+        <!-- Action buttons -->
+        <div style="display:flex; gap:12px; margin-top:8px;">
+          <button type="submit" class="btn btn-primary" id="submit-btn">
+            ➕ Save Expense
+          </button>
+          <button type="button" class="btn btn-outline" onclick="resetForm()">
+            🔄 Reset
+          </button>
+          <a href="/expenses" class="btn btn-outline">
+            📋 View All
+          </a>
+        </div>
+
+      </form>
+    </div>
+
+  </main>
+</div>
+
+<script src="/static/script.js"></script>
+<script>
+/**
+ * Add Expense page script.
+ */
+
+// ── Set today's date as the default value of the date field ──
+document.addEventListener('DOMContentLoaded', () => {
+  const today = new Date().toISOString().split('T')[0]; // "YYYY-MM-DD"
+  document.getElementById('date').value = today;
+});
+
+// ── Helper: show an error under a field ──────────────────────
+function setFieldError(fieldId, message) {
+  const errEl = document.getElementById('err-' + fieldId);
+  if (!errEl) return;
+  if (message) {
+    errEl.textContent = message;
+    errEl.classList.add('visible');
+  } else {
+    errEl.textContent = '';
+    errEl.classList.remove('visible');
+  }
+}
+
+// ── Helper: clear all field errors ───────────────────────────
+function clearErrors() {
+  document.querySelectorAll('.form-error').forEach(el => {
+    el.textContent = '';
+    el.classList.remove('visible');
+  });
+}
+
+// ── Client-side validation ────────────────────────────────────
+// We validate here for instant feedback, but the server also
+// validates to protect against bad data.
+function validateForm(data) {
+  const errors = {};
+  if (!data.title.trim())          errors.title    = 'Title is required.';
+  if (!data.amount || data.amount <= 0) errors.amount = 'Amount must be greater than zero.';
+  if (!data.category)              errors.category = 'Please select a category.';
+  if (!data.date)                  errors.date     = 'Date is required.';
+  return errors;
+}
+
+// ── Form submission ───────────────────────────────────────────
+document.getElementById('expense-form').addEventListener('submit', async (e) => {
+  // Prevent the default browser form submission (which reloads the page)
+  e.preventDefault();
+  clearErrors();
+
+  // Collect form data
+  const data = {
+    title:       document.getElementById('title').value,
+    amount:      parseFloat(document.getElementById('amount').value),
+    category:    document.getElementById('category').value,
+    date:        document.getElementById('date').value,
+    description: document.getElementById('description').value,
+  };
+
+  // Client-side validation
+  const clientErrors = validateForm(data);
+  if (Object.keys(clientErrors).length > 0) {
+    Object.entries(clientErrors).forEach(([field, msg]) => setFieldError(field, msg));
+    return;
+  }
+
+  // Disable the button to prevent double-submission
+  const btn = document.getElementById('submit-btn');
+  btn.disabled = true;
+  btn.textContent = '⏳ Saving…';
+
+  try {
+    const result = await createExpense(data);
+
+    if (result.ok) {
+      // Success — show message and reset the form
+      showAlert('form-alert', `Expense "${data.title}" saved successfully! 🎉`, 'success');
+      resetForm();
+    } else {
+      // Server returned validation errors
+      if (result.data.errors) {
+        Object.entries(result.data.errors).forEach(([field, msg]) => setFieldError(field, msg));
+        showAlert('form-alert', 'Please fix the errors above.', 'error');
+      } else {
+        showAlert('form-alert', result.data.error || 'Something went wrong.', 'error');
+      }
+    }
+  } catch (err) {
+    showAlert('form-alert', 'Network error. Is the server running?', 'error');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '➕ Save Expense';
+  }
+});
+
+// ── Reset the form ────────────────────────────────────────────
+function resetForm() {
+  document.getElementById('expense-form').reset();
+  clearErrors();
+  // Re-set today's date
+  document.getElementById('date').value = new Date().toISOString().split('T')[0];
+}
+</script>
+</body>
+</html>

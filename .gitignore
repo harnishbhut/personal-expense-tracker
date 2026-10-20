@@ -1,0 +1,27 @@
+# Python virtual environment folder — don't commit this
+venv/
+.venv/
+env/
+
+# Database file — contains real user data, don't commit
+expenses.db
+
+# Python byte-compiled files — generated automatically
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Test / coverage reports
+.pytest_cache/
+htmlcov/
+.coverage
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE / editor files
+.vscode/
+.idea/
+*.swp
